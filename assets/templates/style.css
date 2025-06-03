@@ -1,0 +1,195 @@
+/* ===========================================================================
+   Dracula-like Theme: Global Styles
+   =========================================================================== */
+/* —— Card container, font, background —— */
+.card {
+  background-color: #282a36;
+  color: #f8f8f2;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+               "Helvetica Neue", "Noto Sans", sans-serif;
+  font-size: 14px;
+  text-align: left;
+}
+
+/* —— Code block styling —— */
+pre {
+  background-color: #44475a;
+  border: 1px solid #6272a4;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas',
+               'Courier New', 'Source Code Pro', monospace;
+  font-size: 13px;
+  overflow-x: auto;
+  padding: 10px;
+  tab-size: 4;
+}
+
+/* —— Headings and bold text —— */
+h2,
+h3,
+strong {
+  color: #bd93f9; /* Dracula purple */
+}
+
+/* —— List styling —— */
+ul,
+ol {
+  color: inherit;
+  margin: 8px 0 8px 20px;
+}
+
+/* —— Table styling —— */
+table {
+  border-collapse: collapse;
+  color: inherit;
+  margin: 10px 0;
+  width: 100%;
+}
+
+table th,
+table td {
+  border: 1px solid #44475a;
+  font-size: 13px;
+  padding: 8px;
+  text-align: left;
+}
+
+table th {
+  background-color: #6272a4;
+  color: #f1fa8c;
+}
+
+/* —— Divider line —— */
+.divider {
+  border: none;
+  border-top: 1px solid #44475a; /* Dark divider */
+  margin: 10px 0;
+}
+
+/* ===========================================================================
+   Header Section: Problem Title + Difficulty Badge
+   =========================================================================== */
+/* Container for title and difficulty badge */
+.problem-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+/* Problem link text */
+.title-link {
+  color: #ff79c6;
+  font-size: 18px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.title-link:hover {
+  color: #ff79c6;
+  text-decoration: underline;
+}
+
+/* Common style for difficulty badges */
+.difficulty-badge {
+  border-radius: 3px;
+  color: #282a36;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  text-transform: capitalize;
+}
+
+/* Background colors for each difficulty level */
+.Easy {
+  background-color: #50fa7b;   /* Green for Easy */
+}
+
+.Medium {
+  background-color: #ffb86c;   /* Orange for Medium */
+}
+
+.Hard {
+  background-color: #ff5555;   /* Red for Hard */
+}
+
+/* ===========================================================================
+   Tags Row: “Tags” Button + Expanded Tags
+   =========================================================================== */
+/* Container for the entire tags row */
+.tags-row {
+  align-items: center;
+  color: inherit;
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+/* Container for expanded tag buttons */
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  margin-right: 8px;
+}
+
+/* Individual tag button */
+.tag-btn {
+  background-color: #44475a;
+  border: 1px solid #6272a4;
+  border-radius: 3px;
+  color: inherit;
+  font-size: 12px;
+  margin: 2px 5px 5px 0;
+  padding: 4px 8px;
+  text-decoration: none;
+}
+
+.tag-btn:hover {
+  background-color: #6272a4;
+  color: inherit;
+}
+
+/* “Tags” button style to stand out */
+.btn-expand {
+  background-color: #44475a;
+  border: none;
+  border-radius: 3px;
+  color: inherit;
+  padding: 4px 8px;
+}
+
+.btn-expand:hover {
+  background-color: #6272a4;
+  color: inherit;
+}
+
+/* ===========================================================================
+   Description Section
+   =========================================================================== */
+.description {
+  color: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ---------- Back Side: Section Headers ---------- */
+.section-header {
+  margin: 10px 0 6px;
+  text-align: left;
+}
+
+.section-title {
+  color: #bd93f9;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+/* ==============================
+   Note Section: Plain Text Rendering
+   ============================== */
+.note-content {
+  color: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 10px;
+}

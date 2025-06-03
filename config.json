@@ -1,0 +1,18 @@
+{
+  "anki": {
+    "model": {
+      "id": 1307111927,
+      "name": "LeetCode"
+    },
+    "deck": {
+      "id": 2084543157,
+      "name": "LeetCode"
+    }
+  },
+  "rate_limit": 1,
+  "web_driver": {
+    "endpoint": "http://localhost:4444",
+    "headless": true
+  },
+  "cookie": "YOUR_LEETCODE_COOKIE_HERE"
+}

@@ -1,0 +1,62 @@
+<script>
+  // expand all tags
+  function expandTags() {
+    const hiddenTagsElem = document.getElementById('hidden-tags');
+    const containerElem = document.getElementById('tags-container');
+
+    hiddenTagsElem.style.display = 'none';
+
+    const rawTags = '{{Tags}}';
+    const rawTagSlugs = '{{TagSlugs}}';
+    const tags = rawTags ? rawTags.split(';') : [];
+    const tagSlugs = rawTagSlugs ? rawTagSlugs.split(';') : [];
+
+    const fragment = document.createDocumentFragment();
+    tags.forEach((tagText, idx) => {
+      const slug = tagSlugs[idx];
+      const a = document.createElement('a');
+      a.className = 'tag-btn';
+      a.href = `https://leetcode.com/tag/${slug.trim()}/`;
+      a.target = '_blank';
+      a.innerText = tagText.trim();
+
+      fragment.appendChild(a);
+    });
+    
+    containerElem.appendChild(fragment);
+  }
+</script>
+
+
+<div class="problem-header">
+  <!-- problem title -->
+  <div class="title-text">
+    <a href="https://leetcode.com/problems/{{TitleSlug}}" class="title-link" target="_blank">
+      {{ID}}. {{Title}}
+    </a>
+  </div>
+  <!-- difficulty -->
+  <div class="difficulty-badge {{Difficulty}}">
+    {{Difficulty}}
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- problem description -->
+<div class="description">
+  {{Description}}
+</div>
+
+<hr class="divider">
+
+<!-- tags -->
+{{#Tags}}
+<div class="tags-row">
+  <div id="tags-container" class="tags-container"></div>
+  <!-- click to display tags -->
+  <button id="hidden-tags" class="tag-btn btn-expand" onclick="expandTags()">
+    Tags
+  </button>
+</div>
+{{/Tags}}
