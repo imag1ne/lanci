@@ -19,7 +19,7 @@ Here's how the generated card is displayed in Anki (iOS version):
 
 Before using Lanci, make sure you have:
 
-- **[Rust](https://www.rust-lang.org/) and [Cargo](https://github.com/rust-lang/cargo)**installed to compile the code.
+- **[Rust](https://www.rust-lang.org/)** and **[Cargo](https://github.com/rust-lang/cargo)** installed to compile the code.
 - **[Anki](https://github.com/ankitects/anki)** installed to import and study the generated cards.
 - **[Geckodriver](https://github.com/mozilla/geckodriver)** running to allow scraping from LeetCode.
 - A valid **LeetCode cookie** for authentication (to fetch private submissions).
