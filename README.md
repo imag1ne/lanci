@@ -94,7 +94,7 @@ Lanci reads settings from a `config.json` file. By default, it looks for `config
 Once installed and configured, run Lanci to generate both Markdown notes and Anki cards for a given LeetCode problem URL:
 
 ```bash
-lanci --url https://leetcode.com/problems/two-sum/
+./lanci --url https://leetcode.com/problems/two-sum/
 ```
 
 By default, Lanci will:
