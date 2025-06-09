@@ -20,7 +20,11 @@ impl ToMarkdown for MarkdownCodeBlock {
     type Err = ();
 
     fn to_markdown(&self) -> Result<String, Self::Err> {
-        Ok(format!("```{}\n{}\n```", self.language, self.code))
+        let language = match self.language.as_str() {
+            "python3" => "python",
+            _ => &self.language,
+        };
+        Ok(format!("```{}\n{}\n```", language, self.code))
     }
 }
 
