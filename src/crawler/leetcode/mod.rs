@@ -164,7 +164,7 @@ impl LeetCodeCrawler {
         )?;
         let name = format!(
             "{}. {}",
-            question_detail.question_id, question_detail.question_title
+            question_detail.question_frontend_id, question_detail.question_title
         );
 
         let problem = LeetCodeProblem {
