@@ -20,8 +20,9 @@ impl ToMarkdown for MarkdownCodeBlock {
     type Err = ();
 
     fn to_markdown(&self) -> Result<String, Self::Err> {
-        let language = match self.language.as_str() {
-            "python3" => "python",
+        let language = match self.language.to_lowercase().as_str() {
+            "python3" | "pythondata" => "python",
+            "postgresql" | "mysql" | "mssql" | "oraclesql" => "sql",
             _ => &self.language,
         };
         Ok(format!("```{}\n{}\n```", language, self.code))
