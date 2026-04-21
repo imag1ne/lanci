@@ -9,7 +9,7 @@ use question::{QuestionDetail, QuestionObj};
 use submission::SubmissionMeta;
 
 use fantoccini::cookies::Cookie;
-use reqwest::header::{HeaderMap, COOKIE, REFERER};
+use reqwest::header::{COOKIE, HeaderMap, REFERER};
 use serde_json::json;
 use submission::SubmissionObj;
 use url::Url;
@@ -26,6 +26,7 @@ use tracing::{debug, info};
 pub const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36";
 pub const LEET_CODE_HOST: &str = "https://leetcode.com";
 pub const LEET_CODE_API: &str = "https://leetcode.com/graphql";
+const LEET_CODE_COOKIE_DOMAIN: &str = "leetcode.com";
 
 /// Represents a LeetCode problem with its name, description and accepted submissions.
 #[derive(Debug)]
@@ -328,16 +329,26 @@ async fn set_up_web_driver(
     // Set up cookies
     web_driver.goto(LEET_CODE_HOST).await?;
     web_driver
-        .add_cookie(Cookie::new("csrftoken", cookie.csrf_token.clone()))
+        .add_cookie(build_leetcode_cookie("csrftoken", &cookie.csrf_token))
         .await?;
     web_driver
-        .add_cookie(Cookie::new(
+        .add_cookie(build_leetcode_cookie(
             "LEETCODE_SESSION",
-            cookie.leet_code_token.clone(),
+            &cookie.leet_code_token,
         ))
         .await?;
 
     Ok(())
+}
+
+fn build_leetcode_cookie(name: &str, value: &str) -> Cookie<'static> {
+    let mut cookie = Cookie::new(name.to_string(), value.to_string());
+    cookie.set_domain(LEET_CODE_COOKIE_DOMAIN);
+    cookie.set_path("/");
+    // fantoccini 0.21 serializes an unset SameSite as `SameSite=None`, so these
+    // cookies must be marked Secure to satisfy modern browser validation.
+    cookie.set_secure(true);
+    cookie
 }
 
 #[cfg(test)]
@@ -364,5 +375,16 @@ mod tests {
 
         let url = Url::parse("https://leetcode.com/whatever/slug").unwrap();
         assert!(extract_slug_from_url(&url).is_err());
+    }
+
+    #[test]
+    fn test_build_leetcode_cookie_sets_required_attributes() {
+        let cookie = build_leetcode_cookie("csrftoken", "abc123");
+
+        assert_eq!(cookie.name(), "csrftoken");
+        assert_eq!(cookie.value(), "abc123");
+        assert_eq!(cookie.domain(), Some(LEET_CODE_COOKIE_DOMAIN));
+        assert_eq!(cookie.path(), Some("/"));
+        assert_eq!(cookie.secure(), Some(true));
     }
 }
