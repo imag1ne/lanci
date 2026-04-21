@@ -2,8 +2,9 @@ use crate::config::AnkiConfig;
 use crate::crawler::leetcode::LeetCodeProblem;
 use crate::error::AnkiError;
 use crate::markdown::ToMarkdown;
+use comrak::options::Plugins;
 use comrak::plugins::syntect::{SyntectAdapter, SyntectAdapterBuilder};
-use comrak::{ComrakOptions, ComrakPlugins, Options, Plugins, markdown_to_html_with_plugins};
+use comrak::{Options, markdown_to_html_with_plugins};
 use genanki_rs::{Deck, Field, Model, Note, Template};
 use std::io::Cursor;
 use std::path::Path;
@@ -115,8 +116,8 @@ fn new_model(
 fn new_note(
     model: Model,
     problem: &LeetCodeProblem,
-    comrak_options: &ComrakOptions,
-    comrak_plugins: &ComrakPlugins,
+    comrak_options: &Options,
+    comrak_plugins: &Plugins,
 ) -> Result<Note, Box<genanki_rs::Error>> {
     let tags_str = problem
         .description
