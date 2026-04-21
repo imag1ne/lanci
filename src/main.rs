@@ -1,8 +1,8 @@
-use lanci::anki::{set_up_comrak_syntect_adapter, AnkiDeckManager};
+use lanci::anki::{AnkiDeckManager, set_up_comrak_syntect_adapter};
 use lanci::cli::{self, Cli};
 use lanci::config::Config;
-use lanci::crawler::leetcode::{extract_slug_from_url, LeetCodeCrawler};
-use lanci::markdown::{save_markdown_to_file, ToMarkdown};
+use lanci::crawler::leetcode::{LeetCodeCrawler, extract_slug_from_url};
+use lanci::markdown::{ToMarkdown, save_markdown_to_file};
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 

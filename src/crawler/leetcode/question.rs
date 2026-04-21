@@ -2,7 +2,7 @@ use crate::markdown::ToMarkdown;
 use std::fmt;
 
 use lol_html::html_content::ContentType;
-use lol_html::{element, rewrite_str, RewriteStrSettings};
+use lol_html::{RewriteStrSettings, element, rewrite_str};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]

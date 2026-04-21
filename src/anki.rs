@@ -3,7 +3,7 @@ use crate::crawler::leetcode::LeetCodeProblem;
 use crate::error::AnkiError;
 use crate::markdown::ToMarkdown;
 use comrak::plugins::syntect::{SyntectAdapter, SyntectAdapterBuilder};
-use comrak::{markdown_to_html_with_plugins, ComrakOptions, ComrakPlugins, Options, Plugins};
+use comrak::{ComrakOptions, ComrakPlugins, Options, Plugins, markdown_to_html_with_plugins};
 use genanki_rs::{Deck, Field, Model, Note, Template};
 use std::io::Cursor;
 use std::path::Path;
@@ -181,7 +181,7 @@ pub fn set_up_comrak_syntect_adapter() -> Result<SyntectAdapter, AnkiError> {
     Ok(syntect_adapter)
 }
 
-fn set_up_comrak_plugins(syntect_adapter: &SyntectAdapter) -> Plugins {
+fn set_up_comrak_plugins(syntect_adapter: &SyntectAdapter) -> Plugins<'_> {
     let mut plugins = Plugins::default();
     plugins.render.codefence_syntax_highlighter = Some(syntect_adapter);
 
