@@ -22,7 +22,7 @@ Before using Lanci, make sure you have:
 - **[Rust](https://www.rust-lang.org/)** and **[Cargo](https://github.com/rust-lang/cargo)** installed to compile the code.
 - **[Anki](https://github.com/ankitects/anki)** installed to import and study the generated cards.
 - **[Geckodriver](https://github.com/mozilla/geckodriver)** running to allow scraping from LeetCode.
-- A valid **LeetCode cookie** for authentication (to fetch private submissions).
+- A valid **LeetCode cookie header** from a signed-in browser session (to fetch private submissions).
 
 ## Installation
 
@@ -31,6 +31,7 @@ Before using Lanci, make sure you have:
    ```bash
    git clone https://github.com/1magine/lanci.git
    cd lanci
+   ```
 
 2. **Build the Project**:
 
@@ -87,7 +88,7 @@ Lanci reads settings from a `config.json` file. By default, it looks for `config
 - `rate_limit`: Number of requests per second when fetching data (default: `1`).
 - `web_driver.endpoint`: URL of the running WebDriver (default: `"http://localhost:4444"`).
 - `web_driver.headless`: Run the browser in headless mode (`true` or `false`, default: `false`).
-- `cookie`: Your LeetCode session cookie for authentication (required).
+- `cookie`: The full `Cookie` request header copied from a signed-in LeetCode browser session (required).
 
 ## Usage
 
