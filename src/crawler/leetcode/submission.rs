@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SubmissionObj {
@@ -14,27 +14,28 @@ pub struct SubmissionData {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SubmissionList {
+    #[serde(default, deserialize_with = "deserialize_vec_or_default")]
     pub submissions: Vec<SubmissionMeta>,
-    #[serde(rename = "__typename")]
-    pub typename: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SubmissionMeta {
-    pub id: String,
     pub status_display: String,
     pub lang: String,
-    pub runtime: String,
-    pub timestamp: String,
     pub url: String,
-    pub is_pending: String,
-    #[serde(rename = "__typename")]
-    pub typename: String,
 }
 
 impl SubmissionMeta {
     pub fn is_accepted(&self) -> bool {
         self.status_display == "Accepted"
     }
+}
+
+fn deserialize_vec_or_default<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Ok(Option::<Vec<T>>::deserialize(deserializer)?.unwrap_or_default())
 }

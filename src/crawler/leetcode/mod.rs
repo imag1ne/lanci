@@ -9,7 +9,7 @@ use question::{QuestionDetail, QuestionObj};
 use submission::SubmissionMeta;
 
 use fantoccini::cookies::Cookie;
-use reqwest::header::{COOKIE, HeaderMap, REFERER};
+use reqwest::header::{ACCEPT, CONTENT_TYPE, COOKIE, HeaderMap, HeaderName, ORIGIN, REFERER};
 use serde_json::json;
 use submission::SubmissionObj;
 use url::Url;
@@ -21,12 +21,14 @@ pub use question::QuestionDescription;
 use std::fmt::Write;
 use std::num::NonZeroU32;
 use std::time::Duration;
+use tokio::time::sleep;
 use tracing::{debug, info};
 
 pub const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36";
 pub const LEET_CODE_HOST: &str = "https://leetcode.com";
 pub const LEET_CODE_API: &str = "https://leetcode.com/graphql";
 const LEET_CODE_COOKIE_DOMAIN: &str = "leetcode.com";
+const X_CSRF_TOKEN: HeaderName = HeaderName::from_static("x-csrftoken");
 
 /// Represents a LeetCode problem with its name, description and accepted submissions.
 #[derive(Debug)]
@@ -118,6 +120,25 @@ impl LeetCodeCrawler {
                 .parse()
                 .map_err(|e| CrawlerError::Other(format!("cookie parse error: {}", e)))?,
         );
+        headers.insert(
+            ORIGIN,
+            LEET_CODE_HOST
+                .parse()
+                .map_err(|e| CrawlerError::Other(format!("origin parse error: {}", e)))?,
+        );
+        headers.insert(
+            ACCEPT,
+            "application/json"
+                .parse()
+                .map_err(|e| CrawlerError::Other(format!("accept parse error: {}", e)))?,
+        );
+        headers.insert(
+            X_CSRF_TOKEN,
+            cookie
+                .csrf_token
+                .parse()
+                .map_err(|e| CrawlerError::Other(format!("x-csrftoken parse error: {}", e)))?,
+        );
 
         let client = reqwest::Client::builder()
             .user_agent(USER_AGENT)
@@ -182,7 +203,7 @@ impl LeetCodeCrawler {
         info!("Fetching problem detail for slug: {}", slug);
 
         let question_obj: QuestionObj = self.post_graphql(
-            r#"query getQuestionDetail($titleSlug:String!){question(titleSlug:$titleSlug){questionId questionFrontendId questionTitle questionTitleSlug content difficulty stats similarQuestions categoryTitle topicTags{name slug}}}"#,
+            r#"query getQuestionDetail($titleSlug:String!){question(titleSlug:$titleSlug){questionFrontendId questionTitle questionTitleSlug content difficulty topicTags{name slug}}}"#,
             json!({ "titleSlug": slug }),
         ).await?;
 
@@ -196,6 +217,7 @@ impl LeetCodeCrawler {
     ) -> Result<Vec<MarkdownCodeBlock>, CrawlerError> {
         info!("Fetching accepted submissions for slug: {}", slug);
 
+        self.ensure_signed_in().await?;
         let submission_metas = self.fetch_submission_metas(slug).await?;
         let mut code_blocks = Vec::with_capacity(submission_metas.len());
 
@@ -213,6 +235,48 @@ impl LeetCodeCrawler {
         Ok(code_blocks)
     }
 
+    async fn ensure_signed_in(&self) -> Result<(), CrawlerError> {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct UserStatusResponse {
+            data: UserStatusData,
+        }
+
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct UserStatusData {
+            user_status: UserStatus,
+        }
+
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct UserStatus {
+            is_signed_in: bool,
+            username: String,
+        }
+
+        let response: UserStatusResponse = self
+            .post_graphql(
+                r#"query globalData { userStatus { isSignedIn username } }"#,
+                json!({}),
+            )
+            .await?;
+
+        if !response.data.user_status.is_signed_in {
+            return Err(CrawlerError::Other(
+                "LeetCode did not recognize the configured cookies as a signed-in session. Refresh the full browser Cookie header from a session that can open your submissions page."
+                    .to_string(),
+            ));
+        }
+
+        debug!(
+            "Authenticated LeetCode session for user: {}",
+            response.data.user_status.username
+        );
+
+        Ok(())
+    }
+
     /// Fetches the submission metadata for a given problem slug, it returns a vector of `SubmissionMeta`.
     async fn fetch_submission_metas(
         &self,
@@ -220,7 +284,7 @@ impl LeetCodeCrawler {
     ) -> Result<Vec<SubmissionMeta>, CrawlerError> {
         debug!("Fetching submission metadata for slug: {}", slug);
         let submission_obj: SubmissionObj = self.post_graphql(
-            r#"query Submissions($offset:Int! $limit:Int! $lastKey:String $questionSlug:String!){submissionList(offset:$offset limit:$limit lastKey:$lastKey questionSlug:$questionSlug){submissions{id statusDisplay lang runtime timestamp url isPending __typename}__typename}}"#,
+            r#"query Submissions($offset:Int! $limit:Int! $lastKey:String $questionSlug:String!){submissionList(offset:$offset limit:$limit lastKey:$lastKey questionSlug:$questionSlug){submissions{statusDisplay lang url}}}"#,
             json!({ "offset": 0, "limit": 20, "lastKey": "", "questionSlug": slug }),
         )
         .await?;
@@ -249,21 +313,54 @@ impl LeetCodeCrawler {
         Ok(code_block)
     }
 
-    /// Fetches the submitted code for a given submission URL. The code is extracted from the page's JavaScript variable `pageData.submissionCode`.
+    /// Fetches the submitted code for a given submission URL.
     async fn fetch_submitted_code(&self, url: &str) -> Result<String, CrawlerError> {
         self.rate_limiter.until_ready_with_jitter(self.jitter).await;
         debug!("Fetching submitted code from URL: {}", url);
         self.web_driver.goto(url).await?;
 
-        let js_script = "return pageData.submissionCode;";
-        let code_data = self.web_driver.execute(js_script, vec![]).await?;
+        for _ in 0..20 {
+            if let Some(code_text) = self.extract_submission_code().await? {
+                return Ok(code_text);
+            }
 
+            sleep(Duration::from_millis(500)).await;
+        }
+
+        Err(CrawlerError::EmptyResult("submission code in DOM"))
+    }
+
+    async fn extract_submission_code(&self) -> Result<Option<String>, CrawlerError> {
+        if let Ok(code_data) = self
+            .web_driver
+            .execute(
+                "return typeof pageData !== 'undefined' ? pageData.submissionCode : null;",
+                vec![],
+            )
+            .await
+            && let Some(code_text) = code_data
+                .as_str()
+                .map(normalize_submission_code)
+                .filter(|text| !text.is_empty())
+        {
+            return Ok(Some(code_text));
+        }
+
+        let dom_script = r#"
+            const code = document.querySelector('pre code');
+            if (!code) {
+              return null;
+            }
+
+            return (code.innerText || code.textContent || '').trim();
+        "#;
+        let code_data = self.web_driver.execute(dom_script, vec![]).await?;
         let code_text = code_data
             .as_str()
-            .ok_or(CrawlerError::EmptyResult("pageData.submissionCode"))?
-            .trim();
+            .map(normalize_submission_code)
+            .filter(|text| !text.is_empty());
 
-        Ok(code_text.into())
+        Ok(code_text)
     }
 
     /// Sends a GraphQL POST request to the LeetCode API with the provided query and variables.
@@ -281,15 +378,52 @@ impl LeetCodeCrawler {
 
         debug!("Sending GraphQL request: {}", parameters);
 
-        let resp = self
+        let response = self
             .client
             .post(LEET_CODE_API)
             .json(&parameters)
             .send()
-            .await?
-            .error_for_status()?
-            .json::<T>()
             .await?;
+        let status = response.status();
+        let content_type = response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("unknown")
+            .to_string();
+        let body = response.bytes().await?;
+
+        if !status.is_success() {
+            return Err(CrawlerError::Other(format!(
+                "LeetCode GraphQL returned HTTP {} (content-type: {}). Body starts with: {}",
+                status,
+                content_type,
+                body_excerpt(&body)
+            )));
+        }
+
+        let value: serde_json::Value = serde_json::from_slice(&body).map_err(|error| {
+            CrawlerError::Other(format!(
+                "Failed to decode LeetCode GraphQL response as JSON (content-type: {}): {}. Body starts with: {}",
+                content_type,
+                error,
+                body_excerpt(&body)
+            ))
+        })?;
+
+        if let Some(errors) = value.get("errors") {
+            return Err(CrawlerError::Other(format!(
+                "LeetCode GraphQL returned errors: {}",
+                errors
+            )));
+        }
+
+        let resp = serde_json::from_value(value).map_err(|error| {
+            CrawlerError::Other(format!(
+                "LeetCode GraphQL response schema did not match expected shape: {}",
+                error
+            ))
+        })?;
 
         Ok(resp)
     }
@@ -328,15 +462,11 @@ async fn set_up_web_driver(
 
     // Set up cookies
     web_driver.goto(LEET_CODE_HOST).await?;
-    web_driver
-        .add_cookie(build_leetcode_cookie("csrftoken", &cookie.csrf_token))
-        .await?;
-    web_driver
-        .add_cookie(build_leetcode_cookie(
-            "LEETCODE_SESSION",
-            &cookie.leet_code_token,
-        ))
-        .await?;
+    for (name, value) in cookie_pairs(&cookie.raw) {
+        web_driver
+            .add_cookie(build_leetcode_cookie(name, value))
+            .await?;
+    }
 
     Ok(())
 }
@@ -349,6 +479,45 @@ fn build_leetcode_cookie(name: &str, value: &str) -> Cookie<'static> {
     // cookies must be marked Secure to satisfy modern browser validation.
     cookie.set_secure(true);
     cookie
+}
+
+fn body_excerpt(body: &[u8]) -> String {
+    const MAX_LEN: usize = 240;
+
+    let text = String::from_utf8_lossy(body);
+    let condensed = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let excerpt = condensed.chars().take(MAX_LEN).collect::<String>();
+
+    if condensed.chars().count() > MAX_LEN {
+        format!("{}...", excerpt)
+    } else {
+        excerpt
+    }
+}
+
+fn cookie_pairs(raw_cookie: &str) -> Vec<(&str, &str)> {
+    raw_cookie
+        .split(';')
+        .map(str::trim)
+        .filter_map(|part| {
+            let (name, value) = part.split_once('=')?;
+            Some((name.trim(), value.trim()))
+        })
+        .collect()
+}
+
+fn normalize_submission_code(rendered: &str) -> String {
+    rendered
+        .lines()
+        .enumerate()
+        .map(|(index, line)| {
+            let line_number = (index + 1).to_string();
+            line.strip_prefix(&line_number).unwrap_or(line)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string()
 }
 
 #[cfg(test)]
@@ -386,5 +555,37 @@ mod tests {
         assert_eq!(cookie.domain(), Some(LEET_CODE_COOKIE_DOMAIN));
         assert_eq!(cookie.path(), Some("/"));
         assert_eq!(cookie.secure(), Some(true));
+    }
+
+    #[test]
+    fn test_cookie_pairs_preserve_values_with_equals_signs() {
+        let pairs = cookie_pairs("foo=bar=baz; csrftoken=abc123; LEETCODE_SESSION=xyz789==");
+
+        assert_eq!(
+            pairs,
+            vec![
+                ("foo", "bar=baz"),
+                ("csrftoken", "abc123"),
+                ("LEETCODE_SESSION", "xyz789=="),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_normalize_submission_code_removes_rendered_line_numbers() {
+        let rendered =
+            include_str!("../../../tests/fixtures/leetcode/submission_code_numbered.txt");
+        let expected =
+            include_str!("../../../tests/fixtures/leetcode/submission_code_expected.py").trim();
+
+        assert_eq!(normalize_submission_code(rendered), expected);
+    }
+
+    #[test]
+    fn test_normalize_submission_code_keeps_plain_code_unchanged() {
+        let expected =
+            include_str!("../../../tests/fixtures/leetcode/submission_code_expected.py").trim();
+
+        assert_eq!(normalize_submission_code(expected), expected);
     }
 }

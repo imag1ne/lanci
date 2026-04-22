@@ -3,7 +3,7 @@ use std::fmt;
 
 use lol_html::html_content::ContentType;
 use lol_html::{RewriteStrSettings, element, rewrite_str};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Debug, Deserialize)]
 pub struct QuestionObj {
@@ -18,15 +18,12 @@ pub struct QuestionData {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuestionDetail {
-    pub question_id: String,
     pub question_frontend_id: String,
     pub question_title: String,
     pub question_title_slug: String,
     pub content: String,
     pub difficulty: QuestionDifficulty,
-    pub stats: String,
-    pub similar_questions: String,
-    pub category_title: String,
+    #[serde(default, deserialize_with = "deserialize_vec_or_default")]
     pub topic_tags: Vec<TopicTag>,
 }
 
@@ -35,12 +32,22 @@ pub enum QuestionDifficulty {
     Easy,
     Medium,
     Hard,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TopicTag {
     pub name: String,
     pub slug: String,
+}
+
+fn deserialize_vec_or_default<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Ok(Option::<Vec<T>>::deserialize(deserializer)?.unwrap_or_default())
 }
 
 impl ToMarkdown for QuestionDetail {
@@ -114,6 +121,7 @@ impl fmt::Display for QuestionDifficulty {
             QuestionDifficulty::Easy => write!(f, "Easy"),
             QuestionDifficulty::Medium => write!(f, "Medium"),
             QuestionDifficulty::Hard => write!(f, "Hard"),
+            QuestionDifficulty::Unknown => write!(f, "Unknown"),
         }
     }
 }

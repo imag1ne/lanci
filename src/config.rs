@@ -51,6 +51,7 @@ pub struct Config {
 
 #[derive(Debug, Clone)]
 pub struct LeetCodeCookies {
+    pub raw: String,
     pub csrf_token: String,
     pub leet_code_token: String,
 }
@@ -59,10 +60,11 @@ impl FromStr for LeetCodeCookies {
     type Err = ConfigParseError;
 
     fn from_str(cookie_str: &str) -> Result<Self, Self::Err> {
+        let raw = cookie_str.trim().to_string();
         let mut csrf_token = None;
         let mut leet_code_token = None;
 
-        for part in cookie_str.split(';').map(str::trim) {
+        for part in raw.split(';').map(str::trim) {
             if let Some((k, v)) = part.split_once('=') {
                 let key = k.trim();
                 match key {
@@ -82,6 +84,7 @@ impl FromStr for LeetCodeCookies {
             leet_code_token.ok_or(ConfigParseError::CookieParseError("LEETCODE_SESSION"))?;
 
         Ok(Self {
+            raw,
             csrf_token,
             leet_code_token,
         })
@@ -90,11 +93,7 @@ impl FromStr for LeetCodeCookies {
 
 impl fmt::Display for LeetCodeCookies {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "csrftoken={}; LEETCODE_SESSION={}",
-            self.csrf_token, self.leet_code_token
-        )
+        f.write_str(&self.raw)
     }
 }
 
@@ -147,9 +146,21 @@ mod tests {
         // Test valid cookie string
         let cookie_str = "csrftoken=abc123; LEETCODE_SESSION=xyz789";
         let cookies = LeetCodeCookies::from_str(cookie_str).unwrap();
+        assert_eq!(cookies.raw, cookie_str);
         assert_eq!(cookies.csrf_token, "abc123");
         assert_eq!(cookies.leet_code_token, "xyz789");
         assert_eq!(cookies.to_string(), cookie_str);
+    }
+
+    #[test]
+    fn test_preserve_additional_cookies_in_raw_header() {
+        let cookie_str = "cf_clearance=keepme; csrftoken=abc123; LEETCODE_SESSION=xyz789; foo=bar";
+        let cookies = LeetCodeCookies::from_str(cookie_str).unwrap();
+
+        assert_eq!(cookies.raw, cookie_str);
+        assert_eq!(cookies.to_string(), cookie_str);
+        assert_eq!(cookies.csrf_token, "abc123");
+        assert_eq!(cookies.leet_code_token, "xyz789");
     }
 
     #[test]
